@@ -11,6 +11,12 @@
 inline const quint16 SampleSize = sizeof(quint16) * 2;
 inline const quint16 ErrorMaxCount = 5;
 
+inline void SameLinePrint(const QString& data)
+{
+    fprintf(stderr, "%c[2K", 27);
+    fprintf(stderr, "\r%s", qPrintable(data));
+}
+
 QList<LimeSDRDevice*> LimeSDRDevice::availableDevicesList()
 {
     lms_info_str_t* devices = nullptr;
@@ -230,6 +236,12 @@ bool LimeSDRDevice::startTxMission(const TxMissionConfig& config)
                  mDeviceIdentificator, config.frequency, LMS_GetLastErrorMessage());
         return false;
     }
+    else
+    {
+        double t = 0;
+        LMS_GetLOFrequency(mDevice, TX, config.channelNumber, &t);
+        qDebug("Frequency: %f", t);
+    }
 
     if (LMS_SetAntenna(mDevice, TX, config.channelNumber, config.antenaNumber) not_eq 0)
     {
@@ -247,7 +259,7 @@ bool LimeSDRDevice::startTxMission(const TxMissionConfig& config)
         return false;
     }
 
-    //LMS_Calibrate(mDevice, TX, config.channelNumber, config.sampleRate, 0);
+    LMS_Calibrate(mDevice, TX, config.channelNumber, config.sampleRate, 0);
 
     auto stream = new lms_stream_t;
     stream->dataFmt = lms_stream_t::LMS_FMT_I16;
@@ -287,7 +299,7 @@ bool LimeSDRDevice::switchChannel(ChannelType type, quint16 channel, bool state)
         qWarning("[LimeSDRDevice][%llu] Error while setting %s%i channel to state '%s': %s!",
                  mDeviceIdentificator,
                  channelToString(type),
-                 channel,
+                 channel + 1,
                  stateToString(state),
                  LMS_GetLastErrorMessage());
         return false;
@@ -431,35 +443,35 @@ void LimeSDRDevice::txRoutine(int streamId, int transmissionsCount, const QStrin
             else break;
         }
 
-        qDebug("[LimeSDRDevice][%llu] Tx mission %i try.",
-               mDeviceIdentificator, currentTry);
+        //qDebug("[LimeSDRDevice][%llu] Tx mission %i try.",
+        //       mDeviceIdentificator, currentTry);
 
         lms_stream_status_t status;
         LMS_GetStreamStatus(stream, &status);
-        qDebug("\nfifoFilledCount: %i\n"
-               "fifoSize: %i\n"
-               "underrun: %i\n"
-               "overrun: %i\n"
-               "dropped: %i\n"
-               "sampleRate: %f\n"
-               "linkRate: %f",
-               status.fifoFilledCount,
-               status.fifoSize,
-               status.underrun,
-               status.overrun,
-               status.droppedPackets,
-               status.sampleRate,
-               status.linkRate);
+        SameLinePrint(QString("fifo %1 | "
+               "fifoSize %2 | "
+               "underrun %3 | "
+               "overrun %4 | "
+               "dropped %5 | "
+               "smplRate %6 | "
+               "%7 mb/s")
+               .arg(status.fifoFilledCount)
+               .arg(status.fifoSize)
+               .arg(status.underrun)
+               .arg(status.overrun)
+               .arg(status.droppedPackets)
+               .arg(status.sampleRate / 1e6)
+               .arg(status.linkRate / 1e6));
 
         if (currentTry == INT32_MAX) currentTry = 0;
         else ++currentTry;
 
-        std::this_thread::sleep_for(std::chrono::microseconds(50));
+        //std::this_thread::sleep_for(std::chrono::microseconds(50));
     }
 
     deinitTxStream(streamId);
 
-    qDebug("[LimeSDRDevice][%llu] Tx mission finished.", mDeviceIdentificator);
+    qDebug("\n[LimeSDRDevice][%llu] Tx mission finished.", mDeviceIdentificator);
     emit txFinished();
 }
 
