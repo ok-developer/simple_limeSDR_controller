@@ -10,7 +10,7 @@ unsigned short RxMissionConfig::argc()
 const char* RxMissionConfig::argsExample()
 {
     return "<device_number> <rx_channel_number> <antena_number> "
-           "<try_count_or_0> <samples_count> <sample_rate> <frequency> <gain>";
+           "<try_count_or_0> <samples_count> <sample_rate> <frequency> <bandwidth> <gain>";
 }
 
 bool RxMissionConfig::valid() const
@@ -28,7 +28,8 @@ bool RxMissionConfig::parse(const QStringList& args)
     samplesCount = args.at(4).toUInt();
     sampleRate = args.at(5).toDouble();
     frequency = args.at(6).toDouble();
-    gain = args.at(7).toUShort();
+    bandwidth = args.at(7).toDouble();
+    gain = args.at(8).toUShort();
 
     return valid();
 }

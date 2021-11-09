@@ -169,13 +169,13 @@ bool LimeSDRDevice::startRxMission(const RxMissionConfig& config)
         return false;
     }
 
-    //if(LMS_Calibrate(mDevice, RX, config.channelNumber, config.samplerate, 0) not_eq 0)
-    //{
-    //    switchChannel(RX, config.channelNumber, false);
-    //    qWarning("[LimeSDRDevice][%llu] Error while calibrating: %s!",
-    //             mDeviceIdentificator, LMS_GetLastErrorMessage());
-    //    return false;
-    //}
+    if (LMS_Calibrate(mDevice, RX, config.channelNumber, config.bandwidth, 0) not_eq 0)
+    {
+        switchChannel(RX, config.channelNumber, false);
+        qWarning("[LimeSDRDevice][%llu] Error while calibrating: %s!",
+                 mDeviceIdentificator, LMS_GetLastErrorMessage());
+        return false;
+    }
 
     auto stream = new lms_stream_t;
     stream->dataFmt = lms_stream_t::LMS_FMT_I16;
@@ -236,12 +236,6 @@ bool LimeSDRDevice::startTxMission(const TxMissionConfig& config)
                  mDeviceIdentificator, config.frequency, LMS_GetLastErrorMessage());
         return false;
     }
-    else
-    {
-        double t = 0;
-        LMS_GetLOFrequency(mDevice, TX, config.channelNumber, &t);
-        qDebug("Frequency: %f", t);
-    }
 
     if (LMS_SetAntenna(mDevice, TX, config.channelNumber, config.antenaNumber) not_eq 0)
     {
@@ -259,7 +253,13 @@ bool LimeSDRDevice::startTxMission(const TxMissionConfig& config)
         return false;
     }
 
-    LMS_Calibrate(mDevice, TX, config.channelNumber, config.sampleRate, 0);
+    if (LMS_Calibrate(mDevice, TX, config.channelNumber, config.bandwidth, 0) not_eq 0)
+    {
+        switchChannel(TX, config.channelNumber, false);
+        qWarning("[LimeSDRDevice][%llu] Error while calibrating: %s!",
+                 mDeviceIdentificator, LMS_GetLastErrorMessage());
+        return false;
+    }
 
     auto stream = new lms_stream_t;
     stream->dataFmt = lms_stream_t::LMS_FMT_I16;
@@ -432,7 +432,7 @@ void LimeSDRDevice::txRoutine(int streamId, int transmissionsCount, const QStrin
     while (mTxThreadFlag.load()
       and  transmissionsCount not_eq currentTry)
     {
-        const auto sent = LMS_SendStream(stream, buffer.data(), oneTransmissionSize, NULL, 1000);
+        const auto sent = LMS_SendStream(stream, buffer.data(), oneTransmissionSize, NULL, INT_MAX);
         if (sent not_eq oneTransmissionSize)
         {
             qWarning("[LimeSDRDevice][%llu] Tx error: %s!",
